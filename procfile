@@ -1,1 +1,1 @@
-worker: python nbabot.py
+worker: python offsides.py
