@@ -1,6 +1,7 @@
-import discord
+import discord 
 import os
 import aiohttp
+import yt_dlp
 from discord.ext import commands, tasks
 from deep_translator import GoogleTranslator
 
@@ -54,6 +55,20 @@ async def fetch_telegram_messages():
     except Exception as e:
         print(f"Error en fetch_telegram_messages: {str(e)}")
 
+# Función para descargar video con yt_dlp
+def download_video(url, filename):
+    ydl_opts = {
+        'outtmpl': filename,
+        'format': 'mp4/best'
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+        return True
+    except Exception as e:
+        print(f"Error al descargar video: {str(e)}")
+        return False
+
 # Loop asincrónico para verificar continuamente los mensajes de Telegram
 @tasks.loop(seconds=10)
 async def check_telegram():
@@ -87,8 +102,11 @@ async def check_telegram():
                             embed.set_image(url=download_url)
                             await channel.send(embed=embed)
                         elif media["type"] == "video":
-                            embed.add_field(name="🎥 Video", value=f"[Haz clic aquí para verlo]({download_url})", inline=False)
-                            await channel.send(embed=embed)
+                            video_filename = "telegram_video.mp4"
+                            if download_video(download_url, video_filename):
+                                await channel.send(embed=embed)
+                                await channel.send(file=discord.File(video_filename))
+                                os.remove(video_filename)
     except Exception as e:
         print(f"Error en check_telegram: {str(e)}")
 
