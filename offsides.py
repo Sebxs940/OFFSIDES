@@ -8,7 +8,7 @@ from deep_translator import GoogleTranslator
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHANNEL_ID = -1002462623914  # ID del chat de Telegram
-DISCORD_CHANNEL_ID = 1325703982072594504  # ID del canal de Discord
+DISCORD_CHANNEL_ID = 1180556157161590864  # ID del canal de Discord
 
 # Intents de Discord
 intents = discord.Intents.default()
