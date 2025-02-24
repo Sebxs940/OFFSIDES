@@ -1,5 +1,5 @@
 aiohttp==3.8.4
-deep-translator==0.2.21
+deep-translator
 discord.py==2.2.2
 discord-py-interactions==2.1.0
 googletrans==4.0.0-rc1
