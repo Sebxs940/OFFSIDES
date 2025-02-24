@@ -1,6 +1,7 @@
-aiohttp==3.8.4
+aiohttp==3.9.3
 deep-translator
 discord.py==2.2.2
 discord-py-interactions==5.14.0
 googletrans==4.0.0-rc1
 yt-dlp==2024.8.6
+flask
