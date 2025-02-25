@@ -4,7 +4,6 @@ import aiohttp
 import yt_dlp
 from discord.ext import commands, tasks
 from deep_translator import GoogleTranslator
-import webservices
 
 # Configuración global
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -119,5 +118,4 @@ async def on_ready():
 
 # Ejecutar el bot de Discord
 if __name__ == "__main__":
-    webservices.keep_alive()
     bot.run(DISCORD_BOT_TOKEN)
