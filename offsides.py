@@ -12,7 +12,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger('telegram_discord_bot')
+logger = logging.getLogger('TELEGRAM_BOT_TOKEN')
 
 # Configuración global
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
