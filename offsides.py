@@ -5,6 +5,7 @@ import yt_dlp
 from discord.ext import commands, tasks
 from deep_translator import GoogleTranslator
 import logging
+import json
 
 # Configuración de logging
 logging.basicConfig(
@@ -37,7 +38,19 @@ translator = GoogleTranslator(source='auto', target='es')
 async def fetch_telegram_messages():
     global last_update_id
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
-    params = {"timeout": 10}
+    
+    # Primero, eliminar cualquier webhook existente
+    delete_webhook_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/deleteWebhook"
+    try:
+        async with aiohttp.ClientSession() as session:
+            await session.get(delete_webhook_url)
+    except Exception as e:
+        logger.error(f"Error al eliminar webhook: {str(e)}")
+
+    params = {
+        "timeout": 10,
+        "allowed_updates": json.dumps(["message"])
+    }
     if last_update_id is not None:
         params["offset"] = last_update_id + 1
 
@@ -46,10 +59,10 @@ async def fetch_telegram_messages():
             async with session.get(url, params=params) as response:
                 data = await response.json()
                 
-                # Verificar si la respuesta es exitosa
                 if not data.get("ok", False):
                     error_msg = data.get("description", "Error desconocido")
                     logger.error(f"Error en la API de Telegram: {error_msg}")
+                    await asyncio.sleep(5)  # Esperar antes de reintentar
                     return
                 
                 if "result" not in data:
@@ -101,7 +114,7 @@ def download_video(url, filename):
         return False
 
 # Loop asincrónico para verificar continuamente los mensajes de Telegram
-@tasks.loop(seconds=10)
+@tasks.loop(seconds=30)  # Aumentar el intervalo a 30 segundos
 async def check_telegram():
     try:
         channel = bot.get_channel(DISCORD_CHANNEL_ID)
@@ -172,8 +185,11 @@ async def check_telegram():
                 # Si no hay media, solo enviar el texto
                 await channel.send(embed=embed)
                 
+            await asyncio.sleep(1)  # Añadir pequeña pausa entre mensajes
+
     except Exception as e:
         logger.error(f"Error en check_telegram: {str(e)}")
+        await asyncio.sleep(5)  # Esperar antes de reintentar
 
 # Evento de inicio del bot de Discord
 @bot.event
