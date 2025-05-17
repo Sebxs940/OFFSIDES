@@ -2,8 +2,17 @@ import discord
 import os
 import aiohttp
 import yt_dlp
+import logging
+import asyncio
 from discord.ext import commands, tasks
 from deep_translator import GoogleTranslator
+
+# Configurar logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger('telegram_discord_bot')
 
 # Configuración global
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -34,8 +43,13 @@ async def fetch_telegram_messages():
 
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, params=params) as response:
+            async with session.get(url, params=params, timeout=30) as response:
                 data = await response.json()
+                
+                if not data.get("ok", False):
+                    logger.error(f"Error en la API de Telegram: {data.get('description', 'Error desconocido')}")
+                    return
+                
                 if "result" in data:
                     for update in data["result"]:
                         last_update_id = update["update_id"]
@@ -52,8 +66,12 @@ async def fetch_telegram_messages():
                                 media = {"type": "video", "file_id": video["file_id"]}
 
                             yield text, media
+    except aiohttp.ClientError as e:
+        logger.error(f"Error de conexión en fetch_telegram_messages: {str(e)}")
+        await asyncio.sleep(5)
     except Exception as e:
-        print(f"Error en fetch_telegram_messages: {str(e)}")
+        logger.error(f"Error en fetch_telegram_messages: {str(e)}")
+        await asyncio.sleep(5)
 
 # Función para descargar video con yt_dlp
 def download_video(url, filename):
@@ -66,49 +84,70 @@ def download_video(url, filename):
             ydl.download([url])
         return True
     except Exception as e:
-        print(f"Error al descargar video: {str(e)}")
+        logger.error(f"Error al descargar video: {str(e)}")
         return False
 
 # Loop asincrónico para verificar continuamente los mensajes de Telegram
-@tasks.loop(seconds=10)
+@tasks.loop(seconds=30)
 async def check_telegram():
     try:
         channel = bot.get_channel(DISCORD_CHANNEL_ID)
         if not channel:
-            print(f"No se pudo encontrar el canal de Discord con ID {DISCORD_CHANNEL_ID}")
+            logger.error(f"No se pudo encontrar el canal de Discord con ID {DISCORD_CHANNEL_ID}")
             return
 
         async for text, media in fetch_telegram_messages():
-            print(f"Mensaje recibido: {text}")
+            logger.info(f"Mensaje recibido: {text}")
+            try:
+                translated_text = ""
+                if text:
+                    try:
+                        translated_text = translator.translate(text)
+                    except Exception as e:
+                        logger.error(f"Error en la traducción: {str(e)}")
+                        translated_text = text
 
-            translated_text = ""
-            if text:
-                try:
-                    translated_text = translator.translate(text)
-                except Exception as e:
-                    print(f"Error en la traducción: {str(e)}")
-                    translated_text = text
+                embed = discord.Embed(
+                    title="Nuevo mensaje de OFFSIDES ⚽", 
+                    description=translated_text, 
+                    color=discord.Color.blue()
+                )
 
-            embed = discord.Embed(title="Nuevo mensaje de OFFSIDES ⚽", description=translated_text, color=discord.Color.blue())
-            if media:
-                file_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile?file_id={media['file_id']}"
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(file_url) as response:
-                        file_info = await response.json()
-                        file_path = file_info["result"]["file_path"]
-                        download_url = f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{file_path}"
+                if media:
+                    file_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile?file_id={media['file_id']}"
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(file_url, timeout=30) as response:
+                            file_info = await response.json()
+                            
+                            if not file_info.get("ok", False):
+                                logger.error(f"Error al obtener archivo: {file_info.get('description', 'Error desconocido')}")
+                                continue
 
-                        if media["type"] == "photo":
-                            embed.set_image(url=download_url)
-                            await channel.send(embed=embed)
-                        elif media["type"] == "video":
-                            video_filename = "telegram_video.mp4"
-                            if download_video(download_url, video_filename):
+                            file_path = file_info["result"]["file_path"]
+                            download_url = f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{file_path}"
+
+                            if media["type"] == "photo":
+                                embed.set_image(url=download_url)
                                 await channel.send(embed=embed)
-                                await channel.send(file=discord.File(video_filename))
-                                os.remove(video_filename)
+                            elif media["type"] == "video":
+                                video_filename = f"telegram_video_{int(asyncio.get_event_loop().time())}.mp4"
+                                if download_video(download_url, video_filename):
+                                    try:
+                                        await channel.send(embed=embed)
+                                        await channel.send(file=discord.File(video_filename))
+                                    finally:
+                                        if os.path.exists(video_filename):
+                                            os.remove(video_filename)
+                
+                await asyncio.sleep(1)  # Pequeña pausa entre mensajes
+            
+            except Exception as e:
+                logger.error(f"Error procesando mensaje: {str(e)}")
+                continue
+
     except Exception as e:
-        print(f"Error en check_telegram: {str(e)}")
+        logger.error(f"Error en check_telegram: {str(e)}")
+        await asyncio.sleep(5)
 
 # Evento de inicio del bot de Discord
 @bot.event
