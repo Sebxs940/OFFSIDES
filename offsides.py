@@ -2,17 +2,18 @@ import discord
 import os
 import aiohttp
 import yt_dlp
-import logging
 import asyncio
+import logging
 from discord.ext import commands, tasks
 from deep_translator import GoogleTranslator
 
 # Configurar logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger('TELEGRAM_BOT_TOKEN')
+logger = logging.getLogger(__name__)
+
 
 # Configuración global
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
